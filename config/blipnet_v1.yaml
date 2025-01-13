@@ -53,7 +53,8 @@ model:
   # load_model:   ".checkpoints/checkpoint_200.ckpt"
   BlipNet:
     dbscan_eps: 0.3
-    dbscan_min: 10
+    dbscan_min_samples: 10
+    dbscan_metric: "euclidean"
 
 criterion:
   BlipNetLoss:

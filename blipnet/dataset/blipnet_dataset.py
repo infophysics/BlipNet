@@ -54,6 +54,9 @@ class BlipNetDataset(Dataset):
 
     def __getitem__(self, idx):
         data = {
+            'positions': torch.Tensor([[0, 1, 2]]),
+            'features': torch.Tensor([[0, 1, 2, 3]]),
+            'labels': torch.Tensor([[0, 1]])
         }
         if self.normalized:
             data = self.normalize(data)
