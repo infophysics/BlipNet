@@ -1,13 +1,15 @@
 """
 """
+
 from blipnet.utils.logger import Logger
 from blipnet.utils.config import ConfigParser
 from blipnet.utils.utils import get_datetime
-
 from blipnet.module import ModuleHandler
 
 import torch
 import os
+from torch.utils.tensorboard import SummaryWriter
+
 os.environ["TQDM_NOTEBOOK"] = "false"
 
 
@@ -46,7 +48,7 @@ class BlipNetRunner:
             for file in os.listdir(path=os.path.dirname(self.local_data))
         ]
         os.environ['LOCAL_SCRATCH'] = self.local_scratch
-        os.environ['LOCAL_BLIPNET'] = self.local_blipnet
+        os.environ['LOCAL_blipnet'] = self.local_blipnet
         os.environ['LOCAL_DATA'] = self.local_data
 
         self.logger = Logger('blipnet_runner', output="both", file_mode="w")
@@ -82,7 +84,10 @@ class BlipNetRunner:
         # add unique datetime
         now = get_datetime()
         self.run_name += f"_{now}"
-        self.local_run = self.local_scratch + '/' + self.run_name
+        if "local_run" in self.config['module']:
+            self.local_run = self.config['module']['local_run']
+        else:
+            self.local_run = self.local_scratch + '/' + self.run_name
 
         # create run directory
         if not os.path.isdir(self.local_run):
@@ -101,11 +106,16 @@ class BlipNetRunner:
             'run_directory':    self.local_run,
             'plot_directory':   self.local_plots,
             'local_scratch':    self.local_scratch,
-            'local_BLIPNET':       self.local_blipnet,
+            'local_blipnet':       self.local_blipnet,
             'local_data':       self.local_data,
             'local_blipnet_files': self.local_blipnet_files,
             'local_data_files': self.local_data_files
         }
+        # set up tensorboard
+        self.meta['tensorboard_dir'] = self.meta['run_directory']
+        self.meta['tensorboard'] = SummaryWriter(
+            log_dir=self.meta['tensorboard_dir']
+        )
         self.logger.info(f'"now" set to: {now}')
         self.logger.info(f'"run_name" set to: {self.run_name}')
         self.logger.info(f'"run_directory" set to: {self.local_run}')

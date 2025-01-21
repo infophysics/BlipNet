@@ -29,7 +29,7 @@ dataset:
 
 loader:
   loader_type:      ""
-  batch_size:       518
+  batch_size:       2
   test_split:       0.1
   test_seed:        0
   validation_split: 0.3
@@ -40,25 +40,124 @@ training:
   iterations:   1
   epochs:       10
   checkpoint:   10
-  grad_norm:    true
-  progress_bar: "all"        # train, validation, test, all
-  rewrite_bar:      False # wether to leave bars after each epoch
-  save_predictions: False  # wether to save network outputs in original file
-  no_timing:    False     # wether to keep timing/memory info in callback
-  skip_metrics: True
+  patience: 3
+  grad_norm:    false
+  progress_bar: true        # train, validation, test, all
+  rewrite_bar:      false # wether to leave bars after each epoch
+  save_predictions: false  # wether to save network outputs in original file
+  prediction_outputs: []
+  skip_metrics: true
   seed:         0
 
 model:
   # uncomment the line below and specify the model to load from a checkpoint.
   # load_model:   ".checkpoints/checkpoint_200.ckpt"
   BlipNet:
-    dbscan_eps: 0.3
-    dbscan_min_samples: 10
-    dbscan_metric: "euclidean"
+    clustering:
+      dbscan_eps: 0.5
+      dbscan_min_samples: 5
+      dbscan_metric: "euclidean"
+    aggregation:
+      fragment_node_features: ['fragment_node_embedding']
+      fragment_edge_features: ['fragment_edge_embedding', 'fragment_edge_classification']
+      node_output_label: 'fragment_pooled_embedding'
+      edge_index_output_label: 'fragment_pooled_edge_indices'
+    position_embedding:
+      input_dimension: 3
+      output_dimension: 25
+      residual_connection: true
+      input_position_label: 'positions'
+      input_edge_index_label: 'fragment_edge_indices'
+      output_features_label: 'position_embedding'
+      layers: [5, 10, 15, 25]
+      dropout: true
+      dropout_amount: 0.3
+      activation: 'leaky_relu'
+      activation_params:    {'negative_slope': 0.02}
+    fragment_node_embedding:
+      input_dimension: 44
+      output_dimension: 25
+      residual_connection: true
+      input_position_label: ['positions', 'position_embedding', 'features']
+      input_edge_index_label: 'fragment_edge_indices'
+      output_features_label: 'fragment_node_embedding'
+      layers: [50, 100, 25]
+      dropout: true
+      dropout_amount: 0.3
+      activation: 'leaky_relu'
+      activation_params:    {'negative_slope': 0.02}
+    fragment_edge_embedding:
+      type: 'node_neighbors'
+      input_dimension: 50
+      output_dimension: 25
+      residual_connection: true
+      input_position_label: 'fragment_node_embedding'
+      input_edge_index_label: 'fragment_edge_indices'
+      output_features_label: 'fragment_edge_embedding'
+      layers: [50, 100, 25]
+      dropout: true
+      dropout_amount: 0.3
+      activation: 'leaky_relu'
+      activation_params:    {'negative_slope': 0.02}
+    fragment_edge_classifier:
+      type: 'edge'
+      input_dimension: 25
+      output_dimension: 1
+      residual_connection: false
+      input_position_label: 'fragment_edge_embedding'
+      input_edge_index_label: 'fragment_edge_indices'
+      output_features_label: 'fragment_edge_classification'
+      layers: [1]
+      dropout: false
+      dropout_amount: 0.0
+      activation: 'sigmoid'
+      activation_params: {}
+    interaction_node_embedding:
+      input_dimension: 51
+      output_dimension: 25
+      residual_connection: true
+      input_position_label: 'fragment_pooled_embedding'
+      input_edge_index_label: 'fragment_pooled_edge_indices'
+      output_features_label: 'interaction_node_embedding'
+      layers: [50, 100, 25]
+      dropout: true
+      dropout_amount: 0.3
+      activation: 'leaky_relu'
+      activation_params:    {'negative_slope': 0.02}
+    interaction_edge_embedding:
+      type: 'node_neighbors'
+      input_dimension: 102
+      output_dimension: 25
+      residual_connection: true
+      input_position_label: 'fragment_pooled_embedding'
+      input_edge_index_label: 'fragment_pooled_edge_indices'
+      output_features_label: 'interaction_edge_embedding'
+      layers: [50, 100, 25]
+      dropout: true
+      dropout_amount: 0.3
+      activation: 'leaky_relu'
+      activation_params:    {'negative_slope': 0.02}
+    interaction_edge_classifier:
+      type: 'edge'
+      input_dimension: 25
+      output_dimension: 1
+      residual_connection: false
+      input_position_label: 'interaction_edge_embedding'
+      input_edge_index_label: 'interaction_edge_indices'
+      output_features_label: 'interaction_edge_classification'
+      layers: [1]
+      dropout: false
+      dropout_amount: 0.0
+      activation: 'sigmoid'
+      activation_params: {}
+    
 
 criterion:
-  BlipNetLoss:
+  FragmentEdgeLoss:
     alpha: 1
+    target: 'fragment_node_answer'
+    output: 'fragment_edge_classification'
+
 
 metrics:
 

@@ -1,11 +1,6 @@
 """
 Generic module
 """
-import os
-import copy
-import random
-import numpy as np
-
 # from blipnet.analysis.model_analyzer_handler import ModelAnalyzerHandler
 from blipnet.models import ModelHandler
 from blipnet.module.generic_module import GenericModule
@@ -13,7 +8,6 @@ from blipnet.losses import LossHandler
 from blipnet.optimizers import Optimizer
 from blipnet.metrics import MetricHandler
 from blipnet.trainer import Trainer
-from blipnet.utils.callbacks import CallbackHandler
 
 
 class MachineLearningModule(GenericModule):
@@ -49,11 +43,8 @@ class MachineLearningModule(GenericModule):
         self.meta['criterion'] = None
         self.meta['optimizer'] = None
         self.meta['metrics'] = None
-        self.meta['callbacks'] = None
         self.meta['trainer'] = None
         self.meta['model_analyzer'] = None
-
-        self.parse_inference()
 
     def check_config(self):
         if "model" not in self.config.keys():
@@ -68,8 +59,6 @@ class MachineLearningModule(GenericModule):
                 self.logger.error('"optimizer" section not specified in config!')
             if "metrics" not in self.config.keys():
                 self.logger.warn('"metrics" section not specified in config!')
-            if "callbacks" not in self.config.keys():
-                self.logger.warn('"callbacks" section not specified in config!')
             if "training" not in self.config.keys():
                 self.logger.error('"training" section not specified in config!')
 
@@ -82,8 +71,6 @@ class MachineLearningModule(GenericModule):
     ):
         """
         """
-        if self.mode == "linear_evaluation":
-            return
         if "model" not in self.config.keys():
             self.logger.warn("no model in config file.")
             return
@@ -146,30 +133,6 @@ class MachineLearningModule(GenericModule):
             meta=self.meta
         )
 
-    def parse_callbacks(
-        self,
-    ):
-        """
-        """
-        if "callbacks" not in self.config.keys():
-            self.logger.warn("no callbacks in config file.")
-            return
-        self.logger.info("configuring callbacks.")
-        callbacks_config = self.config['callbacks']
-        if callbacks_config is None:
-            self.logger.warn("no callbacks specified.")
-        else:
-            for callback in callbacks_config.keys():
-                if callbacks_config[callback] is None:
-                    callbacks_config[callback] = {}
-                callbacks_config[callback]['criterion_handler'] = self.meta['criterion']
-                callbacks_config[callback]['metrics_handler'] = self.meta['metrics']
-        self.meta['callbacks'] = CallbackHandler(
-            self.name,
-            callbacks_config,
-            meta=self.meta
-        )
-
     def parse_training(
         self,
     ):
@@ -193,13 +156,12 @@ class MachineLearningModule(GenericModule):
             self.logger.warn("no inference in config file.")
             return
         self.logger.info("configuring inference.")
-        training_config = self.config['training']
-        if self.meta['trainer'] is None:
-            self.meta['trainer'] = Trainer(
-                self.name,
-                training_config,
-                meta=self.meta
-            )
+        inference_config = self.config['inference']
+        self.meta['trainer'] = Trainer(
+            self.name,
+            inference_config,
+            meta=self.meta
+        )
 
         if "layers" in self.config["inference"].keys():
             for layer in self.config["inference"]["layers"]:
@@ -226,7 +188,6 @@ class MachineLearningModule(GenericModule):
         self.parse_loss()
         self.parse_optimizer()
         self.parse_metrics()
-        self.parse_callbacks()
         self.parse_training()
         self.module_data_product['predictions'] = self.meta['trainer'].train(
             epochs=self.config['training']['epochs'],
@@ -234,7 +195,7 @@ class MachineLearningModule(GenericModule):
             progress_bar=self.config['training']['progress_bar'],
             rewrite_bar=self.config['training']['rewrite_bar'],
             save_predictions=self.config['training']['save_predictions'],
-            no_timing=self.config['training']['no_timing'],
+            prediction_outputs=self.config['training']['prediction_outputs'],
             skip_metrics=self.config['training']['skip_metrics']
         )
         if self.meta['model_analyzer'] is not None:
@@ -242,11 +203,12 @@ class MachineLearningModule(GenericModule):
 
     def run_inference(self):
         self.parse_model()
+        self.parse_inference()
         self.module_data_product['predictions'] = self.meta['trainer'].inference(
             dataset_type=self.config['inference']['dataset_type'],
             layers=self.config['inference']['layers'],
-            outputs=self.config['inference']['outputs'],
             progress_bar=self.config['inference']['progress_bar'],
             rewrite_bar=self.config['inference']['rewrite_bar'],
-            save_predictions=self.config['inference']['save_predictions']
+            save_predictions=self.config['inference']['save_predictions'],
+            prediction_outputs=self.config['inference']['prediction_outputs']
         )

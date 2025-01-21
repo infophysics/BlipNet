@@ -19,9 +19,14 @@ class BlipNetLoss(GenericLoss):
         super(BlipNetLoss, self).__init__(
             name, alpha, meta
         )
+        self.fragment_edge_loss = nn.BCELoss(reduction='mean')
 
     def _loss(
         self,
         data
     ):
+        fragment_answer = data['fragment_answer'].to(self.device).float()
+        fragment_edge_class = data['fragment_edge_class'].to(self.device)
+        data['fragment_edge_loss'] = self.fragment_edge_loss(fragment_edge_class, fragment_answer)
+        data['blipnet_loss'] = self.alpha * (data['fragment_edge_loss'])
         return data

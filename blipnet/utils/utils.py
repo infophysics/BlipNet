@@ -19,6 +19,36 @@ from os import listdir
 from os.path import isfile, join
 from itertools import product
 from datetime import datetime
+from itertools import combinations
+
+
+def generate_complete_edge_list(batch):
+    """
+    Generates a complete edge list for nodes, ensuring edges are created
+    only between nodes in the same batch.
+
+    Args:
+        batch (torch.Tensor): Tensor of shape [num_nodes] specifying the batch ID
+                              for each node. Nodes with the same batch ID are connected.
+
+    Returns:
+        edge_index (torch.Tensor): Tensor of shape (2, num_edges) representing the edge index.
+    """
+    edges = []
+    unique_batches = torch.unique(batch)
+
+    for b in unique_batches:
+        # Get indices of nodes belonging to the current batch
+        batch_indices = (batch == b).nonzero(as_tuple=True)[0]
+
+        # Generate all possible pairs of indices in this batch
+        for i, j in combinations(batch_indices.tolist(), 2):
+            edges.append((i, j))  # Add edge (i -> j)
+            edges.append((j, i))  # Add edge (j -> i)
+
+    # Convert to torch tensor
+    edge_index = torch.tensor(edges).T if edges else torch.empty((2, 0), dtype=torch.long)
+    return edge_index
 
 
 def tar_single_file(

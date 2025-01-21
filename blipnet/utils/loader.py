@@ -40,7 +40,7 @@ class Loader:
     ):
         batched_data = {}
         for key in batch[0].keys():
-            batched_data[key] = torch.stack([item[key] for item in batch], dim=0)
+            batched_data[key] = torch.cat([item[key] for item in batch], dim=0)
         return batched_data
 
     def set_config(
