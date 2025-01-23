@@ -21,13 +21,13 @@ class FragmentNodeLoss(GenericLoss):
         )
         self.target = target
         self.output = output
-        self.fragment_node_loss = nn.BCELoss(reduction='mean')
+        self.fragment_node_loss = nn.CrossEntropyLoss(reduction='mean')
 
     def _loss(
         self,
         data
     ):
-        fragment_node_answer = data[self.target].to(self.device).float()
+        fragment_node_answer = data[self.target].to(self.device).squeeze()
         fragment_node_output = data[self.output].to(self.device)
         data['fragment_node_loss'] = self.alpha * (self.fragment_node_loss(
             fragment_node_output, fragment_node_answer

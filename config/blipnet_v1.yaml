@@ -30,9 +30,9 @@ dataset:
 loader:
   loader_type:      ""
   batch_size:       2
-  test_split:       0.1
+  test_split:       0.0
   test_seed:        0
-  validation_split: 0.3
+  validation_split: 0.0
   validation_seed:  0
   num_workers:      4
 
@@ -40,7 +40,7 @@ training:
   iterations:   1
   epochs:       10
   checkpoint:   10
-  patience: 3
+  patience: -1
   grad_norm:    false
   progress_bar: true        # train, validation, test, all
   rewrite_bar:      false # wether to leave bars after each epoch
@@ -53,10 +53,17 @@ model:
   # uncomment the line below and specify the model to load from a checkpoint.
   # load_model:   ".checkpoints/checkpoint_200.ckpt"
   BlipNet:
-    clustering:
+    training: true
+    fragment_clustering:
       dbscan_eps: 0.5
       dbscan_min_samples: 5
       dbscan_metric: "euclidean"
+      cluster_features: ['positions']
+    interaction_clustering:
+      dbscan_eps: 5.0
+      dbscan_min_samples: 3
+      dbscan_metric: "euclidean"
+      cluster_features: ['fragment_edge_embedding', 'fragment_edge_classification']
     aggregation:
       fragment_node_features: ['fragment_node_embedding']
       fragment_edge_features: ['fragment_edge_embedding', 'fragment_edge_classification']
@@ -99,6 +106,18 @@ model:
       dropout_amount: 0.3
       activation: 'leaky_relu'
       activation_params:    {'negative_slope': 0.02}
+    fragment_node_classifier:
+      input_dimension: 25
+      output_dimension: 1
+      residual_connection: false
+      input_position_label: 'fragment_node_embedding'
+      input_edge_index_label: 'fragment_edge_indices'
+      output_features_label: 'fragment_node_classification'
+      layers: [4]
+      dropout: false
+      dropout_amount: 0.0
+      activation: 'sigmoid'
+      activation_params: {}
     fragment_edge_classifier:
       type: 'edge'
       input_dimension: 25
@@ -150,14 +169,25 @@ model:
       dropout_amount: 0.0
       activation: 'sigmoid'
       activation_params: {}
-    
 
 criterion:
+  FragmentNodeLoss:
+    alpha: 1
+    target: 'fragment_truth'
+    output: 'fragment_node_classification'
   FragmentEdgeLoss:
     alpha: 1
-    target: 'fragment_node_answer'
+    target: 'fragment_edge_truth'
     output: 'fragment_edge_classification'
-
+  ContrastiveFragmentLoss:
+    alpha: 1
+    temperature: 0.1
+    target: 'fragment_edge_truth'
+    output: 'fragment_edge_embedding'
+  InteractionEdgeLoss:
+    alpha: 1
+    target: 'interaction_edge_purity'
+    output: 'interaction_edge_classification'
 
 metrics:
 

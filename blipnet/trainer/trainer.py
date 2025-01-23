@@ -256,15 +256,15 @@ class Trainer:
             if epoch % checkpoint == 0:
                 self.save_checkpoint(epoch)
             torch.cuda.empty_cache()
-
-            """Check early stopping conditions"""
-            if np.mean(epoch_val_losses['loss']) > early_stopping_loss:
-                patience += 1
-            else:
-                patience = 0
-                early_stopping_loss = np.mean(epoch_val_losses['loss'])
-            if patience > self.patience:
-                break
+            if self.patience > -1:
+                """Check early stopping conditions"""
+                if np.mean(epoch_val_losses['loss']) > early_stopping_loss:
+                    patience += 1
+                else:
+                    patience = 0
+                    early_stopping_loss = np.mean(epoch_val_losses['loss'])
+                if patience > self.patience:
+                    break
         self.logger.info("training finished.")
         """
         Testing stage.
@@ -335,7 +335,6 @@ class Trainer:
         rewrite_bar: bool = True
     ):
         """Generate plots and run through mapper"""
-        self.model.set_device('cpu')
         if progress_bar:
             training_loop = tqdm(
                 enumerate(self.meta['loader'].train_loader, 0),

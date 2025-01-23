@@ -10,7 +10,7 @@ class FragmentEdgeLoss(GenericLoss):
     """
     def __init__(
         self,
-        name: str = 'fragment_loss_loss',
+        name: str = 'fragment_edge_loss',
         alpha: float = 0.0,
         target: str = '',
         output: str = '',
@@ -21,7 +21,7 @@ class FragmentEdgeLoss(GenericLoss):
         )
         self.target = target
         self.output = output
-        self.fragment_loss_loss = nn.BCELoss(reduction='mean')
+        self.fragment_edge_loss = nn.BCELoss(reduction='mean')
 
     def _loss(
         self,
@@ -29,7 +29,7 @@ class FragmentEdgeLoss(GenericLoss):
     ):
         fragment_loss_answer = data[self.target].to(self.device).float()
         fragment_loss_output = data[self.output].to(self.device)
-        data['fragment_loss_loss'] = self.alpha * (self.fragment_loss_loss(
+        data['fragment_edge_loss'] = self.alpha * (self.fragment_edge_loss(
             fragment_loss_output, fragment_loss_answer
         ))
         return data

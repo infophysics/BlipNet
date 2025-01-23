@@ -22,6 +22,30 @@ from datetime import datetime
 from itertools import combinations
 
 
+def max_purity_torch(src, dst):
+    """
+    Compute the maximum purity between two lists using PyTorch.
+
+    Parameters:
+        src (Tensor): 1D tensor of labels for the source cluster.
+        dst (Tensor): 1D tensor of labels for the destination cluster.
+
+    Returns:
+        float: Maximum purity between the two lists.
+    """
+    # Combine src and dst to find unique labels
+    unique_labels = torch.unique(torch.cat([src, dst]))
+    total_count = len(src) + len(dst)  # Total number of elements in src and dst
+
+    # Compute the purity for all unique labels
+    src_counts = (src.unsqueeze(1) == unique_labels).sum(dim=0)  # Counts of each label in src
+    dst_counts = (dst.unsqueeze(1) == unique_labels).sum(dim=0)  # Counts of each label in dst
+    purity_values = (src_counts + dst_counts) / total_count
+
+    # Return the maximum purity
+    return purity_values.max().item()
+
+
 def generate_complete_edge_list(batch):
     """
     Generates a complete edge list for nodes, ensuring edges are created

@@ -9,7 +9,7 @@ from torch_geometric.nn import GCNConv
 from blipnet.models.common import activations
 
 
-class GraphConvolution(nn.Module):
+class NodeEmbedding(nn.Module):
     """
     A GCNConv layer with batch norm, activations,
     optional residual layers and dropout.
@@ -19,7 +19,7 @@ class GraphConvolution(nn.Module):
         config,
         device,
     ):
-        super(GraphConvolution, self).__init__()
+        super(NodeEmbedding, self).__init__()
         self.config = config
         self.device = device
         self.construct_layer()
