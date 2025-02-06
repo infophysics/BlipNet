@@ -15,10 +15,10 @@ dataset:
   # ---- variables ----
   # Here we specify the location of the GUT variables in the files
   # and the weak values associated to the trial points.
-  positions: []
-  features: []
-  classes: []
-  labels: []
+  positions: [0, 1, 2]
+  features: [3, 4]
+  fragment_truth: [5]
+  interaction_truth: [6]
   # ---- normalization ----
   # Normalization parameters for positions and features.  Typically we want to normalize
   # input features depending on the type of task, or to unbias certain simulation parameters,
@@ -69,6 +69,8 @@ model:
       fragment_edge_features: ['fragment_edge_embedding', 'fragment_edge_classification']
       node_output_label: 'fragment_pooled_embedding'
       edge_index_output_label: 'fragment_pooled_edge_indices'
+      edge_aggregation_type: 'soft_labels'
+      edge_aggregation_param: 0.75
     position_embedding:
       input_dimension: 3
       output_dimension: 25

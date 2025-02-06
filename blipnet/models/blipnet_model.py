@@ -11,7 +11,6 @@ from torch_geometric.nn import global_mean_pool
 from blipnet.models import GenericModel
 from blipnet.models.layers.node_embedding import NodeEmbedding
 from blipnet.models.layers.edge_embedding import EdgeEmbedding
-from blipnet.utils.utils import generate_complete_edge_list
 from blipnet.utils.utils import max_purity_torch
 
 blipnet_config = {
@@ -77,6 +76,8 @@ class BlipNet(GenericModel):
         self.edge_aggregation_features = self.config["aggregation"]["fragment_edge_features"]
         self.node_aggregation_output_label = self.config["aggregation"]["node_output_label"]
         self.edge_index_aggregation_output_label = self.config["aggregation"]["edge_index_output_label"]
+        self.edge_aggregation_type = self.config["aggregation"]["edge_aggregation_type"]
+        self.edge_aggregation_param = self.config["aggregation"]["edge_aggregation_param"]
         self.fragment_node_pooling = global_mean_pool
         self.fragment_edge_pooling = global_mean_pool
 
@@ -172,7 +173,6 @@ class BlipNet(GenericModel):
         data = self.generate_interaction_node_embedding(data)
         data = self.generate_interaction_edge_embedding(data)
         data = self.generate_interaction_edge_classifier(data)
-        print(data)
         return data
 
     def generate_position_embedding(
@@ -399,7 +399,6 @@ class BlipNet(GenericModel):
         unique_batches = fragment_node_batch.unique()
         for b in unique_batches:
             """Grab the current batch"""
-            node_mask = (fragment_node_batch == b)
             edge_mask = (fragment_edge_batch == b)
 
             """Apply node features aggregation"""
@@ -409,8 +408,6 @@ class BlipNet(GenericModel):
 
             """Apply edge features aggregation"""
             interaction_cluster_features_batch = interaction_cluster_features[edge_mask]
-
-            interaction_truth_batch = interaction_truth[node_mask].clone().detach().cpu()
 
             """Run DBSCAN on edge features"""
             edge_embeddings_np = interaction_cluster_features_batch.clone().detach().cpu().numpy()
@@ -473,6 +470,7 @@ class BlipNet(GenericModel):
                     for fragment_node_index in torch.unique(fragment_node_indices):
                         cluster_edge_indices.append([cluster_offset, fragment_node_index.item()])
                     cluster_offset += 1
+
             """Combine cluster embeddings"""
             cluster_embeddings_batch = torch.stack(cluster_embeddings).squeeze(1)
             interaction_index_batch = torch.Tensor([
@@ -488,35 +486,50 @@ class BlipNet(GenericModel):
                 cluster_embeddings_batch.clone().detach().cpu()
             )
             minimum_tree = minimum_spanning_tree(dist_matrix).toarray()
+
             """Collect edge indices, labels from the spanning tree"""
             batch_edges = []
             for i, j in zip(*np.nonzero(minimum_tree)):
                 batch_edges.append((i + batch_offset, j + batch_offset))
                 batch_complete_edge_lists.append((i + batch_offset, j + batch_offset))
+
             """Compute interaction edge purity"""
-            for edge in batch_edges:
-                src, dst = edge
-                src_nodes = [
-                    cluster_node_map[1]
-                    for ii, cluster_node_map in enumerate(cluster_edge_indices)
-                    if cluster_node_map[0] == src
-                ]
-                dst_nodes = [
-                    cluster_node_map[1]
-                    for ii, cluster_node_map in enumerate(cluster_edge_indices)
-                    if cluster_node_map[0] == dst
-                ]
-                src = interaction_truth[src_nodes]
-                dst = interaction_truth[dst_nodes]
-                purity = max_purity_torch(src, dst)
-                interaction_edge_purity.append(purity)
+            if self.edge_aggregation_type == 'soft_labels':
+                """
+                For soft labels, we use the max purity of each cluster pair
+                as the classification answer, which is a probability from 0 to 1.
+                """
+                for edge in batch_edges:
+                    src, dst = edge
+                    src_nodes = [
+                        cluster_node_map[1]
+                        for ii, cluster_node_map in enumerate(cluster_edge_indices)
+                        if cluster_node_map[0] == src
+                    ]
+                    dst_nodes = [
+                        cluster_node_map[1]
+                        for ii, cluster_node_map in enumerate(cluster_edge_indices)
+                        if cluster_node_map[0] == dst
+                    ]
+                    src = interaction_truth[src_nodes]
+                    dst = interaction_truth[dst_nodes]
+                    purity = max_purity_torch(src, dst)
+                    interaction_edge_purity.append(purity)
+            else:
+                """
+                Otherwise we use majority voting, which sets the classification
+                answer as either zero or one, and is determined by a majority
+                vote percentage set in the config file.
+                """
+                pass
 
             batch_offset += cluster_offset
+
         """Store results in data"""
         batch_complete_edge_lists = torch.tensor(batch_complete_edge_lists, dtype=torch.long).t()
         data[self.node_aggregation_output_label] = torch.cat(fragment_embeddings, dim=0)
         data['interaction_batches'] = torch.cat(interaction_batches, dim=0)
-        data['interaction_edge_indices'] = torch.tensor(interaction_edge_indices).t()  # Shape (2, N)
+        data['interaction_edge_indices'] = torch.tensor(interaction_edge_indices).t()
         data[self.edge_index_aggregation_output_label] = batch_complete_edge_lists.clone()
         data['interaction_edge_purity'] = torch.tensor(interaction_edge_purity, dtype=torch.float32)
         return data

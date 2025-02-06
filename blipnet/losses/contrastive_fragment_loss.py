@@ -31,7 +31,7 @@ class ContrastiveFragmentLoss(GenericLoss):
         self,
         data
     ):
-        fragment_loss_answer = data[self.target].to(self.device).float()
+        fragment_loss_answer = data[self.target].to(self.device).float().unsqueeze(1)
         fragment_loss_output = data[self.output].to(self.device)
 
         # Normalize edge embeddings for cosine similarity

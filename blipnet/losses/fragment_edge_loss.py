@@ -27,7 +27,7 @@ class FragmentEdgeLoss(GenericLoss):
         self,
         data
     ):
-        fragment_loss_answer = data[self.target].to(self.device).float()
+        fragment_loss_answer = data[self.target].to(self.device).float().unsqueeze(1)
         fragment_loss_output = data[self.output].to(self.device)
         data['fragment_edge_loss'] = self.alpha * (self.fragment_edge_loss(
             fragment_loss_output, fragment_loss_answer
